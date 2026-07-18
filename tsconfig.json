@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "paths": {
+      "~/*": ["./src/*"]
+    },
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "allowJs": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "downlevelIteration": true,
+
+    "skipLibCheck": true,
+
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx"
+  },
+  "tsc-alias": {
+    "verbose": false,
+    "resolveFullPaths": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}

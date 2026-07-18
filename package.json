@@ -1,0 +1,82 @@
+{
+  "name": "hono-api-typeorm",
+  "description": "Rest API using Hono.js with TypeORM",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run build:watch\" \"npm run watch-dev\"",
+    "build:watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
+    "watch-dev": "nodemon --watch \"dist/**/*\" -e js ./dist/main.js",
+    "clean": "rimraf dist",
+    "format": "eslint . --fix && prettier --write .",
+    "check": "tsc --noEmit",
+    "prebuild": "npm run clean && npm run format",
+    "build": "tsc && tsc-alias",
+    "start": "node dist/main.js",
+    "release": "release-it",
+    "release:pre": "release-it --preRelease=beta",
+    "release:patch": "release-it patch",
+    "release:minor": "release-it minor",
+    "release:major": "release-it major",
+    "db:migrate:create": "bun run script/create-migration.ts",
+    "db:migrate:run": "typeorm migration:run -d dist/config/database.js",
+    "db:subscribe:create": "bun run script/create-subscription.ts",
+    "db:schema:sync": "typeorm schema:sync -d dist/config/database.js",
+    "db:schema:drop": "typeorm schema:drop -d dist/config/database.js",
+    "db:reset": "npm-run-all db:schema:drop db:schema:sync",
+    "db:sync": "npm-run-all db:reset"
+  },
+  "author": {
+    "name": "N. Fajri",
+    "email": "me@masb0ymas.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@dotenvx/dotenvx": "^2.14.0",
+    "@hono/node-server": "^2.0.10",
+    "@hono/zod-validator": "^0.9.0",
+    "argon2": "^0.44.0",
+    "concurrently": "^10.0.3",
+    "date-fns": "^4.4.0",
+    "hono": "^4.12.30",
+    "hono-rate-limiter": "^0.5.3",
+    "jsonwebtoken": "^9.0.3",
+    "lodash": "^4.18.1",
+    "nanoid": "^6.0.0",
+    "npm-run-all": "^4.1.5",
+    "pg": "^8.22.0",
+    "pg-hstore": "^2.3.4",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^1.1.0",
+    "uuid": "^14.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@release-it/conventional-changelog": "^11.0.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.9.5",
+    "release-it": "^20.2.1",
+    "rimraf": "^6.1.3",
+    "tsc-alias": "^1.9.1",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.64.0"
+  },
+  "keywords": [
+    "honojs",
+    "api",
+    "typescript"
+  ],
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">= 24.x"
+  }
+}
