@@ -172,3 +172,7 @@ docker run -p 8080:8080 hono-api-typeorm
 ```
 
 The `Dockerfile` uses a multi-stage `pnpm` build and expects a `.env.production` file to be present at build time.
+
+## License
+
+MIT
