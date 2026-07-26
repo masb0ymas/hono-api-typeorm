@@ -18,7 +18,7 @@ Rest API built with [Hono.js](https://hono.dev) and [TypeORM](https://typeorm.io
 ```
 .
 ├── Dockerfile                 # Multi-stage production Docker build (pnpm-based)
-├── script/                    # CLI helper scripts (run with `bun`)
+├── script/                    # CLI helper scripts
 │   ├── create-migration.ts    # Scaffold a new TypeORM migration file
 │   └── create-subscription.ts # Scaffold a new TypeORM subscriber file
 ├── public/                    # Static assets served at /static/*
@@ -68,7 +68,6 @@ Rest API built with [Hono.js](https://hono.dev) and [TypeORM](https://typeorm.io
 - Node.js `>= 24.x` (see `.nvmrc`)
 - [pnpm](https://pnpm.io) `11.10.0` (declared in `packageManager`)
 - PostgreSQL database
-- [Bun](https://bun.sh) (only needed for `db:migrate:create` / `db:subscribe:create` scripts)
 
 ## Getting Started
 

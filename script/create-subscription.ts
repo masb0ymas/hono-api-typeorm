@@ -4,7 +4,7 @@ const name = process.argv[2]
 
 if (!name) {
   console.error('Error: subscribers name is required.\n')
-  console.info('Usage: bun run db:create <subscribers-name>\n')
+  console.info('Usage: pnpm run db:subscribe:create <subscribers-name>\n')
   process.exit(1)
 }
 

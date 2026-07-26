@@ -4,7 +4,7 @@ const name = process.argv[2]
 
 if (!name) {
   console.error('Error: migration name is required.\n')
-  console.info('Usage: bun run db:create <migration-name>\n')
+  console.info('Usage: pnpm run db:migrate:create <migration-name>\n')
   process.exit(1)
 }
 
