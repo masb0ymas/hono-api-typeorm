@@ -9,7 +9,7 @@
     "build:watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
     "watch-dev": "nodemon --watch \"dist/**/*\" -e js ./dist/main.js",
     "clean": "rimraf dist",
-    "format": "eslint src --fix && prettier --write .",
+    "format": "eslint --fix && prettier --write .",
     "check": "tsc --noEmit",
     "prebuild": "npm run clean && npm run format",
     "build": "tsc && tsc-alias",

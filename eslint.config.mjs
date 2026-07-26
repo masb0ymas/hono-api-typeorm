@@ -6,7 +6,7 @@ import * as tseslint from 'typescript-eslint'
 export default defineConfig(
   {
     // config with just ignores is the replacement for `.eslintignore`
-    ignores: ['build/**', 'dist/**', 'node_modules/**/*', 'script/**'],
+    ignores: ['build/**', 'dist/**', 'node_modules/**/*'],
   },
   {
     files: ['src/**/*.ts'],
