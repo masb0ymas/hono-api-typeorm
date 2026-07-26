@@ -9,7 +9,7 @@ import {
 } from 'typeorm'
 
 import { Base } from './base'
-import { User } from './user'
+import { User } from './users'
 
 @Entity({ name: 'refresh_tokens' })
 export class RefreshToken extends Base {

@@ -13,8 +13,8 @@ import {
 } from 'typeorm'
 
 import { Base } from './base'
-import { Role } from './role'
-import { Session } from './session'
+import { Role } from './roles'
+import { Session } from './sessions'
 
 @Entity({ name: 'users' })
 @Unique(['email'])

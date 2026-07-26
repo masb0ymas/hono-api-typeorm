@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 
 import { AppDataSource } from '~/config/database'
-import { User } from '~/database/entities/user'
+import { User } from '~/database/entities/users'
 import { BAD_REQUEST, NOT_FOUND } from '~/lib/constants/error'
 import HttpResponse from '~/lib/http/response'
 

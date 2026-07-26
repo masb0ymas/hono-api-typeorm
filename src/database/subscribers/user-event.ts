@@ -7,7 +7,7 @@ import {
   type UpdateEvent,
 } from 'typeorm'
 
-import { User } from '../entities/user'
+import { User } from '../entities/users'
 
 @EventSubscriber()
 export class UserEvent implements EntitySubscriberInterface {

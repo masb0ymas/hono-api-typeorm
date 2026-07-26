@@ -4,7 +4,7 @@ import type { Context, Next } from 'hono'
 
 import { AppDataSource } from '~/config/database'
 import { env } from '~/config/env'
-import { Session } from '~/database/entities/session'
+import { Session } from '~/database/entities/sessions'
 import { UNAUTHORIZED } from '~/lib/constants/error'
 import { JWT_CONSTANTS } from '~/lib/constants/jwt'
 import HttpResponse from '~/lib/http/response'

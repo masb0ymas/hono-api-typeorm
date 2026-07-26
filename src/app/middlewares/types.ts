@@ -1,4 +1,4 @@
-import type { Session } from '~/database/entities/session'
+import type { Session } from '~/database/entities/sessions'
 
 declare module 'hono' {
   interface ContextVariableMap {

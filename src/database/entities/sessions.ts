@@ -1,7 +1,7 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, type Relation } from 'typeorm'
 
 import { Base } from './base'
-import { User } from './user'
+import { User } from './users'
 
 @Entity({ name: 'sessions' })
 export class Session extends Base {

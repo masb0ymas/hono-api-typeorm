@@ -1,5 +1,5 @@
 import { AppDataSource } from '~/config/database'
-import { User } from '~/database/entities/user'
+import { User } from '~/database/entities/users'
 import { useQuery } from '~/lib/query'
 import type { DtoFindAll, FindParams } from '~/types/repository'
 

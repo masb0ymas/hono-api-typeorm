@@ -4,7 +4,7 @@ import type { MigrationInterface, QueryRunner } from 'typeorm'
 import { AppDataSource } from '~/config/database'
 import { ROLE_DATA } from '~/lib/constants/seed/role'
 
-import { Role } from '../entities/role'
+import { Role } from '../entities/roles'
 
 export class RoleSeeder1784380263013 implements MigrationInterface {
   public async up(_queryRunner: QueryRunner): Promise<void> {

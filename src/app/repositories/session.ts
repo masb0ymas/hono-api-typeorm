@@ -1,5 +1,5 @@
 import { AppDataSource } from '~/config/database'
-import { Session } from '~/database/entities/session'
+import { Session } from '~/database/entities/sessions'
 
 import BaseRepository from './base'
 

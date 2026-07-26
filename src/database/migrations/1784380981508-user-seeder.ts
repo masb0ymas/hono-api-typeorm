@@ -6,7 +6,7 @@ import { AppDataSource } from '~/config/database'
 import { env } from '~/config/env'
 import { USER_DATA } from '~/lib/constants/seed/user'
 
-import { User } from '../entities/user'
+import { User } from '../entities/users'
 
 export class UserSeeder1784380981508 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {

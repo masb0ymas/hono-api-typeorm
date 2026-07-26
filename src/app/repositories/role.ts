@@ -1,5 +1,5 @@
 import { AppDataSource } from '~/config/database'
-import { Role } from '~/database/entities/role'
+import { Role } from '~/database/entities/roles'
 
 import BaseRepository from './base'
 
