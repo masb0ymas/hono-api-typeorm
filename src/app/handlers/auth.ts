@@ -1,6 +1,4 @@
-import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
-import _ from 'lodash'
 import { nanoid } from 'nanoid'
 import { v7 as uuidv7 } from 'uuid'
 
@@ -15,53 +13,46 @@ import { ROLE_SEED } from '~/lib/constants/seed/role'
 import { ms } from '~/lib/date'
 import ErrorResponse from '~/lib/http/errors'
 import HttpResponse from '~/lib/http/response'
-import JwtToken from '~/lib/jwt'
+import jwt from '~/lib/jwt/client'
 
 import { RefreshTokenSchema, SignInSchema, SignUpSchema } from '../dtos/auth'
 import { authorization } from '../middlewares/authorization'
+import { validateJson } from '../middlewares/validator'
 
 const route = new Hono()
 
-route.post('/sign-up', zValidator('json', SignUpSchema), async (c) => {
+route.post('/sign-up', validateJson(SignUpSchema), async (c) => {
   const values = c.req.valid('json')
 
-  const jwt = new JwtToken({
-    secret: env.jwt.secret,
-    expires: JWT_CONSTANTS.DEFAULT_TOKEN_EXPIRES,
-  })
-
-  const payload = JSON.parse(JSON.stringify({ uid: uuidv7() }))
+  const payload = { uid: uuidv7() }
   const { token } = jwt.generate(payload)
 
-  const formValues = {
+  const repo = AppDataSource.getRepository(User)
+
+  const user = repo.create({
     ...values,
     is_active: false,
     is_blocked: false,
     token_verify: token,
     role_id: ROLE_SEED.USER,
-  }
+  })
 
-  const userRepo = AppDataSource.getRepository(User)
-  await userRepo.save(formValues)
+  await repo.save(user)
 
   const response = HttpResponse.created({ message: 'Sign up successfully' })
   return c.json(response, 201)
 })
 
-route.post('/sign-in', zValidator('json', SignInSchema), async (c) => {
+route.post('/sign-in', validateJson(SignInSchema), async (c) => {
   const values = c.req.valid('json')
 
-  let data: Record<string, unknown> = {}
+  const data = await AppDataSource.transaction(async (manager) => {
+    const userRepo = manager.getRepository(User)
+    const roleRepo = manager.getRepository(Role)
+    const sessionRepo = manager.getRepository(Session)
+    const refreshTokenRepo = manager.getRepository(RefreshToken)
 
-  await AppDataSource.transaction(async (manager) => {
-    const repo = {
-      user: manager.getRepository(User),
-      role: manager.getRepository(Role),
-      session: manager.getRepository(Session),
-      refreshToken: manager.getRepository(RefreshToken),
-    }
-
-    const getUser = await repo.user.findOne({
+    const user = await userRepo.findOne({
       select: {
         id: true,
         fullname: true,
@@ -73,67 +64,58 @@ route.post('/sign-in', zValidator('json', SignInSchema), async (c) => {
       where: { email: values.email },
     })
 
-    if (!getUser) {
+    if (!user) {
       throw new ErrorResponse.NotFound('user not found')
     }
 
-    if (!getUser.is_active) {
+    if (!user.is_active) {
       throw new ErrorResponse.BadRequest('user is not active, please verify your email')
     }
 
-    const isPasswordMatch = await getUser.comparePassword(values.password)
+    const isPasswordMatch = await user.comparePassword(values.password)
     if (!isPasswordMatch) {
       throw new ErrorResponse.BadRequest('current password is incorrect')
     }
 
-    const getRole = await repo.role.findOne({ where: { id: getUser.role_id } })
-    if (!getRole) {
+    const role = await roleRepo.findOne({ where: { id: user.role_id } })
+    if (!role) {
       throw new ErrorResponse.NotFound('role not found')
     }
 
-    const jwt = new JwtToken({
-      secret: env.jwt.secret,
-      expires: JWT_CONSTANTS.DEFAULT_TOKEN_EXPIRES,
-    })
+    const { token, expiresIn } = jwt.generate({ uid: user.id })
 
-    const payload = JSON.parse(JSON.stringify({ uid: getUser.id }))
-    const { token, expiresIn } = jwt.generate(payload)
+    const session = await sessionRepo.save(
+      sessionRepo.create({
+        user_id: user.id,
+        token,
+        expires_at: new Date(Date.now() + expiresIn * 1000),
+        expires_in: String(expiresIn),
+      })
+    )
 
-    // Session
-    const sessionEntity = new Session()
-
-    const session = await repo.session.save({
-      ...sessionEntity,
-      user_id: getUser.id,
-      token,
-      expires_at: new Date(Date.now() + expiresIn * 1000),
-      expires_in: expiresIn,
-    } as unknown as Session)
-
-    // Refresh Token
-    const refreshTokenEntity = new RefreshToken()
     const refreshTokenExpires = ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES)
     const refresh_token = nanoid()
 
-    await repo.refreshToken.save({
-      ...refreshTokenEntity,
-      user_id: getUser.id,
-      token: refresh_token,
-      id_token: session.id,
-      expires_at: new Date(Date.now() + refreshTokenExpires),
-      expires_in: refreshTokenExpires / 1000,
-    } as unknown as RefreshToken)
+    await refreshTokenRepo.save(
+      refreshTokenRepo.create({
+        user_id: user.id,
+        token: refresh_token,
+        id_token: session.id,
+        expires_at: new Date(Date.now() + refreshTokenExpires),
+        expires_in: String(refreshTokenExpires / 1000),
+      })
+    )
 
-    data = {
-      uid: getUser.id,
-      display_name: getUser.fullname,
-      email: getUser.email,
+    return {
+      uid: user.id,
+      display_name: user.fullname,
+      email: user.email,
       access_token: token,
-      refresh_token: refresh_token,
+      refresh_token,
       id_token: session.id,
       expires_at: new Date(Date.now() + expiresIn * 1000),
       expires_in: expiresIn,
-      role: getRole.name.toLowerCase(),
+      role: role.name.toLowerCase(),
     }
   })
 
@@ -144,123 +126,93 @@ route.post('/sign-in', zValidator('json', SignInSchema), async (c) => {
 route.get('/me', authorization(), async (c) => {
   const auth = c.get('auth')
 
-  const repo = {
-    user: AppDataSource.getRepository(User),
-    session: AppDataSource.getRepository(Session),
-  }
+  const repo = AppDataSource.getRepository(User)
+  const user = await repo.findOne({ where: { id: auth.userId }, relations: { role: true } })
 
-  const user = await repo.user.findOne({ where: { id: auth.userId } })
   if (!user) {
     throw new ErrorResponse.NotFound('user not found')
-  }
-
-  const session = await repo.session.findOne({ where: { user_id: user.id, token: auth.token } })
-  if (!session) {
-    throw new ErrorResponse.NotFound('session not found')
-  }
-
-  const jwt = new JwtToken({
-    secret: env.jwt.secret,
-    expires: JWT_CONSTANTS.DEFAULT_TOKEN_EXPIRES,
-  })
-
-  const decodeToken = jwt.verify(auth.token)
-  const uid = (decodeToken.data as Record<string, string>).uid
-
-  if (!_.isEmpty(uid) && uid !== user.id) {
-    throw new ErrorResponse.BadRequest('user id not match')
   }
 
   const response = HttpResponse.get({ data: user })
   return c.json(response, 200)
 })
 
-route.post('/refresh', authorization(), zValidator('json', RefreshTokenSchema), async (c) => {
-  const auth = c.get('auth')
+route.post('/refresh', validateJson(RefreshTokenSchema), async (c) => {
   const values = c.req.valid('json')
 
-  const repo = {
-    user: AppDataSource.getRepository(User),
-    session: AppDataSource.getRepository(Session),
-    refreshToken: AppDataSource.getRepository(RefreshToken),
-  }
+  const data = await AppDataSource.transaction(async (manager) => {
+    const userRepo = manager.getRepository(User)
+    const sessionRepo = manager.getRepository(Session)
+    const refreshTokenRepo = manager.getRepository(RefreshToken)
 
-  const user = await repo.user.findOne({ where: { id: auth.userId }, relations: { role: true } })
-  if (!user) {
-    throw new ErrorResponse.NotFound('user not found')
-  }
+    const refreshToken = await refreshTokenRepo.findOne({
+      where: { token: values.refresh_token },
+    })
 
-  const refreshToken = await repo.refreshToken.findOne({
-    where: { user_id: user.id, token: values.refresh_token },
-  })
-  if (!refreshToken) {
-    throw new ErrorResponse.NotFound('refresh token not found')
-  }
+    if (!refreshToken) {
+      throw new ErrorResponse.NotFound('refresh token not found')
+    }
 
-  if (refreshToken.expires_at < new Date()) {
-    throw new ErrorResponse.BadRequest('refresh token expired')
-  }
+    if (refreshToken.expires_at < new Date()) {
+      throw new ErrorResponse.BadRequest('refresh token expired')
+    }
 
-  const jwt = new JwtToken({
-    secret: env.jwt.secret,
-    expires: JWT_CONSTANTS.DEFAULT_TOKEN_EXPIRES,
-  })
+    const user = await userRepo.findOne({
+      where: { id: refreshToken.user_id },
+      relations: { role: true },
+    })
 
-  const payload = JSON.parse(JSON.stringify({ uid: user.id }))
-  const { token, expiresIn } = jwt.generate(payload)
+    if (!user) {
+      throw new ErrorResponse.NotFound('user not found')
+    }
 
-  const session = await repo.session.findOne({ where: { user_id: user.id, token: auth.token } })
+    if (!user.is_active) {
+      throw new ErrorResponse.BadRequest('user is not active, please verify your email')
+    }
 
-  if (!session) {
-    throw new ErrorResponse.NotFound('session not found')
-  }
+    const session = await sessionRepo.findOne({ where: { id: refreshToken.id_token } })
+    if (!session) {
+      throw new ErrorResponse.NotFound('session not found')
+    }
 
-  await repo.session.save({
-    ...session,
-    user_id: user.id,
-    token,
-    expires_at: new Date(Date.now() + expiresIn * 1000),
-    expires_in: expiresIn,
-  } as unknown as Session)
+    const { token, expiresIn } = jwt.generate({ uid: user.id })
 
-  const response = HttpResponse.get({
-    data: {
+    await sessionRepo.save(
+      sessionRepo.merge(session, {
+        token,
+        expires_at: new Date(Date.now() + expiresIn * 1000),
+        expires_in: String(expiresIn),
+      })
+    )
+
+    // Rotate the refresh token so a leaked one cannot be replayed.
+    const nextRefreshToken = nanoid()
+    await refreshTokenRepo.save(refreshTokenRepo.merge(refreshToken, { token: nextRefreshToken }))
+
+    return {
       uid: user.id,
       display_name: user.fullname,
       email: user.email,
       access_token: token,
-      refresh_token: values.refresh_token,
+      refresh_token: nextRefreshToken,
       id_token: session.id,
       expires_at: new Date(Date.now() + expiresIn * 1000),
       expires_in: expiresIn,
       role: user.role.name.toLowerCase(),
-    },
+    }
   })
+
+  const response = HttpResponse.get({ message: 'Token refreshed successfully', data })
   return c.json(response, 200)
 })
 
 route.post('/sign-out', authorization(), async (c) => {
   const auth = c.get('auth')
 
-  const repo = {
-    user: AppDataSource.getRepository(User),
-    session: AppDataSource.getRepository(Session),
-    refreshToken: AppDataSource.getRepository(RefreshToken),
-  }
-
-  const user = await repo.user.findOne({ where: { id: auth.userId } })
-  if (!user) {
-    throw new ErrorResponse.NotFound('user not found')
-  }
-
-  const session = await repo.session.findOne({ where: { user_id: user.id, token: auth.token } })
-  if (!session) {
-    throw new ErrorResponse.NotFound('session not found')
-  }
-
-  await repo.refreshToken.delete({ id_token: session.id })
-
-  await repo.session.delete({ token: auth.token })
+  await AppDataSource.transaction(async (manager) => {
+    await manager.getRepository(RefreshToken).delete({ id_token: auth.session.id })
+    await manager.getRepository(Session).delete({ id: auth.session.id })
+  })
 
   const response = HttpResponse.get({ message: 'Sign out successfully' })
   return c.json(response, 200)

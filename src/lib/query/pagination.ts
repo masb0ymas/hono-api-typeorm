@@ -1,20 +1,21 @@
 import { type ObjectLiteral } from 'typeorm'
 
 import { validate } from '../validate'
-import type { ApplyPaginationParams, CalculateLimitParams } from './types'
+import type { ApplyPaginationParams } from './types'
+
+const DEFAULT_LIMIT = 10
 
 /**
  * Calculate page size
  */
-function _calculateLimit({ limit, maxLimit }: CalculateLimitParams) {
-  const min = 10
+function _calculateLimit({ limit, maxLimit }: { limit: number; maxLimit: number }) {
   const parseLimit = validate.number(limit)
 
   if (parseLimit > 0) {
     return Math.min(parseLimit, maxLimit)
   }
 
-  return min
+  return DEFAULT_LIMIT
 }
 
 /**
@@ -27,11 +28,7 @@ export function applyPagination<T extends ObjectLiteral>({
   options,
 }: ApplyPaginationParams<T>) {
   const parseOffset = validate.number(offset) || 0
-  let parseLimit = _calculateLimit({ limit, maxLimit: options?.maxLimit ?? 100 })
-
-  if (parseLimit <= 0) {
-    parseLimit = 10
-  }
+  const parseLimit = _calculateLimit({ limit, maxLimit: options?.maxLimit ?? 100 })
 
   query.skip(parseOffset)
   query.take(parseLimit)

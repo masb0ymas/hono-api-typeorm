@@ -2,7 +2,7 @@ import { type DataSourceOptions, type ObjectLiteral, SelectQueryBuilder } from '
 
 export type ApplyFilterParams<T extends ObjectLiteral> = {
   query: SelectQueryBuilder<T>
-  filters: QueryFilters[] | string
+  filters: QueryFilters[] | undefined
   model: string
   options?: DataSourceOptions
 }
@@ -28,7 +28,7 @@ export type ApplyPaginationParams<T extends ObjectLiteral> = {
 
 export type ApplySortParams<T extends ObjectLiteral> = {
   query: SelectQueryBuilder<T>
-  sorts: QuerySorts[]
+  sorts: QuerySorts[] | undefined
   model: string
   orderKey?: string
 }
@@ -39,12 +39,10 @@ export type QuerySorts = {
 }
 
 type RequestQuery = {
-  filtered?: QueryFilters[] | undefined
-  sorted?: QuerySorts[] | undefined
-  page?: string | number
-  pageSize?: string | number
-  [key: string]:
-    QueryFilters[] | QuerySorts[] | Record<string, unknown> | string | number | undefined
+  offset?: number
+  limit?: number
+  filtered?: QueryFilters[]
+  sorted?: QuerySorts[]
 }
 
 type QueryOptions = {

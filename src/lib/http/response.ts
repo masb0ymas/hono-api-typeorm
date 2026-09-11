@@ -1,5 +1,3 @@
-import type z from 'zod'
-
 type DataResponseEntity<TData> = {
   message?: string
   success?: boolean
@@ -9,6 +7,13 @@ type DtoHttpResponse<TData> = {
   success: boolean
   message: string
 } & Omit<DataResponseEntity<TData>, 'message' | 'success'>
+
+type Paginated<TData> = {
+  data: TData[]
+  total: number
+  offset: number
+  limit: number
+}
 
 export default class HttpResponse {
   /**
@@ -21,7 +26,7 @@ export default class HttpResponse {
   ): DtoHttpResponse<TData> {
     const { message = 'data has been received', success = true, ...rest } = dataResponse
 
-    return { success, message, ...rest }
+    return { success, message, ...rest } as DtoHttpResponse<TData>
   }
 
   /**
@@ -32,7 +37,7 @@ export default class HttpResponse {
   public static get<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
     const message = 'data has been received'
 
-    return this.baseResponse({ message, ...dataResponse! })
+    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
   }
 
   /**
@@ -43,7 +48,7 @@ export default class HttpResponse {
   public static created<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
     const message = 'data has been created'
 
-    return this.baseResponse({ success: 201, message, ...dataResponse! })
+    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
   }
 
   /**
@@ -54,7 +59,7 @@ export default class HttpResponse {
   public static updated<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
     const message = 'data has been updated'
 
-    return this.baseResponse({ message, ...dataResponse! })
+    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
   }
 
   /**
@@ -65,7 +70,7 @@ export default class HttpResponse {
   public static restored<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
     const message = 'data has been restored'
 
-    return this.baseResponse({ message, ...dataResponse! })
+    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
   }
 
   /**
@@ -76,31 +81,15 @@ export default class HttpResponse {
   public static deleted<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
     const message = 'data has been deleted'
 
-    return this.baseResponse({ message, ...dataResponse! })
+    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
   }
 
   /**
-   * Throw Get By ID
-   * @param issues
+   * Response Paginated
+   * @param paginated
    * @returns
    */
-  public static throwGetByID(issues: z.core.$ZodIssue[]) {
-    const message = 'ID must be a valid UUID'
-
-    return this.baseResponse({ message, success: false, errors: issues })
-  }
-
-  /**
-   * Throw Error
-   * @param errorCode Error code
-   * @param message Error message
-   * @returns Error response
-   */
-  public static throwError(errorCode: string, message: string) {
-    return this.baseResponse({
-      message: `${errorCode}: ${message}`,
-      success: false,
-      error: errorCode,
-    })
+  public static paginated<TData>({ data, total, offset, limit }: Paginated<TData>) {
+    return this.get({ data, metadata: { offset, limit, total } })
   }
 }

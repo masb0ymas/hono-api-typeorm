@@ -2,6 +2,8 @@
 
 Rest API built with [Hono.js](https://hono.dev) and [TypeORM](https://typeorm.io), using PostgreSQL as the database and JWT for authentication.
 
+> **Database requirement:** PostgreSQL 14+ (the schema uses `uuid` columns and `ILIKE`). The `TYPEORM_CONNECTION` env var also accepts `mysql`/`sqlite` for other projects, but this schema's migrations are Postgres-specific.
+
 ## Tech Stack
 
 - **[Hono](https://hono.dev)** – lightweight web framework
@@ -30,20 +32,21 @@ Rest API built with [Hono.js](https://hono.dev) and [TypeORM](https://typeorm.io
     ├── app/
     │   ├── routers/             # Hono route composition
     │   │   ├── index.ts          # Root app: global middlewares, mounts home/v1, error handler
-    │   │   ├── home.ts           # `/` health route
+    │   │   ├── home.ts           # `/` banner and `/health` routes
     │   │   └── v1.ts             # `/v1` API routes (auth, users, roles, sessions)
     │   ├── handlers/            # Route handlers (controllers) per resource
-    │   │   ├── auth.ts           # Login, register, refresh-token, logout
+    │   │   ├── auth.ts           # Sign up, sign in, me, refresh-token, sign out
     │   │   ├── user.ts           # User CRUD
     │   │   ├── role.ts           # Role CRUD
-    │   │   └── session.ts        # Session listing/management
+    │   │   └── session.ts        # Session listing/revocation
     │   ├── repositories/        # Data-access layer wrapping TypeORM repositories
     │   │   ├── base.ts           # Generic base repository (pagination, filtering, sorting)
-    │   │   ├── user.ts / role.ts / session.ts
+    │   │   ├── user.ts / role.ts / session.ts / refresh-token.ts
     │   ├── middlewares/         # Hono middlewares
     │   │   ├── authorization.ts  # JWT auth guard
     │   │   ├── error-handler.ts  # Central onError handler
     │   │   ├── rate-limiter.ts   # Rate limiting config
+    │   │   ├── validator.ts      # zValidator wrappers feeding the error handler
     │   │   └── types.ts
     │   └── dtos/                 # Zod DTOs/schemas for request validation
     │       ├── auth.ts / user.ts / role.ts / paginate.ts / base.ts
@@ -108,19 +111,21 @@ Defined and validated in `src/config/env.ts` (via Zod). See `.env.example` for t
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
 | `NODE_ENV`                                                                                 | `development` \| `production` \| `test` \| `staging` |
 | `MACHINE_ID`                                                                               | Unique machine/instance identifier                   |
-| `DEBUG`                                                                                    | Enable debug logging                                 |
-| `PORT`                                                                                     | HTTP server port                                     |
+| `DEBUG`                                                                                    | Log the resolved config at startup (`true`/`false`)  |
+| `PORT`                                                                                     | HTTP server port (default `8080`)                    |
 | `APP_NAME`, `APP_URL`                                                                      | App metadata                                         |
 | `APP_DEFAULT_PASS`                                                                         | Default password used for seeded users               |
-| `JWT_SECRET`, `JWT_EXPIRES`                                                                | JWT signing secret & expiry                          |
+| `JWT_SECRET`, `JWT_EXPIRES`                                                                | JWT signing secret & access-token expiry             |
 | `TYPEORM_CONNECTION`                                                                       | `mysql` \| `postgres` \| `sqlite`                    |
 | `TYPEORM_HOST`, `TYPEORM_PORT`, `TYPEORM_USERNAME`, `TYPEORM_PASSWORD`, `TYPEORM_DATABASE` | Database connection                                  |
-| `TYPEORM_SYNCHRONIZE`, `TYPEORM_LOGGING`, `TYPEORM_MIGRATIONS_RUN`                         | TypeORM behavior flags                               |
+| `TYPEORM_SYNCHRONIZE`, `TYPEORM_LOGGING`, `TYPEORM_MIGRATIONS_RUN`                         | TypeORM behavior flags (`true`/`false`)              |
 | `TYPEORM_TIMEZONE`                                                                         | Database timezone                                    |
+
+All three `TYPEORM_*` flags and `DEBUG` are parsed as strict booleans, so `"false"` and `"0"` mean false.
 
 ## Database & Migrations
 
-Migration/subscriber scripts operate on the **built** output in `dist/`, so run `pnpm build` (or have `dev` running) before executing them.
+Migration/subscriber **runner** commands (`db:migrate:run`, `db:schema:sync`, `db:schema:drop`) operate on the **built** output in `dist/`, so run `pnpm build` (or have `dev` running) before executing them. The two `*:create` scaffolds run from source via `tsx` and do not need a build.
 
 ```bash
 # Create a new migration file (scaffolded under src/database/migrations)
@@ -141,16 +146,29 @@ pnpm db:sync
 
 All versioned routes are mounted under `/v1` (see `src/app/routers/v1.ts`):
 
-| Method(s) | Path             | Description                            |
-| --------- | ---------------- | -------------------------------------- |
-| `*`       | `/`              | Health check (`home` router)           |
-| `*`       | `/v1/auth/*`     | Login, register, refresh token, logout |
-| `*`       | `/v1/users/*`    | User management                        |
-| `*`       | `/v1/roles/*`    | Role management                        |
-| `*`       | `/v1/sessions/*` | Session listing/management             |
-| `*`       | `/static/*`      | Static files served from `public/`     |
+| Method(s) | Path                | Description                        |
+| --------- | ------------------- | ---------------------------------- |
+| `GET`     | `/`                 | Service banner                     |
+| `GET`     | `/health`           | Health check                       |
+| `POST`    | `/v1/auth/sign-up`  | Register                           |
+| `POST`    | `/v1/auth/sign-in`  | Log in                             |
+| `GET`     | `/v1/auth/me`       | Current user (requires auth)       |
+| `POST`    | `/v1/auth/refresh`  | Rotate the access + refresh tokens |
+| `POST`    | `/v1/auth/sign-out` | Revoke the current session         |
+| `*`       | `/v1/users/*`       | User management                    |
+| `*`       | `/v1/roles/*`       | Role management                    |
+| `*`       | `/v1/sessions/*`    | Session listing and revocation     |
+| `GET`     | `/static/*`         | Static files served from `public/` |
 
-Global middlewares applied in `src/app/routers/index.ts`: request logging, gzip compression, request ID, 1MB body limit, CORS, rate limiting, and centralized error handling (`src/app/middlewares/error-handler.ts`, `src/lib/http/errors`).
+Authenticated routes expect `Authorization: Bearer <access_token>`.
+
+List endpoints (`/v1/users`, `/v1/roles`, `/v1/sessions`) accept `offset`, `limit`, `filtered`, and `sorted` query parameters. `filtered` and `sorted` are JSON-encoded arrays, for example:
+
+```
+/v1/users?offset=0&limit=10&filtered=[{"id":"email","value":"admin"}]&sorted=[{"sort":"created_at","order":"DESC"}]
+```
+
+Global middlewares applied in `src/app/routers/index.ts`: request logging, gzip compression, request ID, 1MB body limit, CORS, rate limiting, and centralized error handling (`src/app/middlewares/error-handler.ts`, `src/lib/http/errors`). Errors share one shape: `{ success: false, name, message }` (plus `errors` for validation details).
 
 ## Other Scripts
 

@@ -1,4 +1,3 @@
-import _ from 'lodash'
 import type { ObjectLiteral, SelectQueryBuilder } from 'typeorm'
 
 import { env } from '~/config/env'
@@ -9,6 +8,9 @@ import { applyPagination } from './pagination'
 import { applySort } from './sorted'
 import type { QueryBuilderParams, QueryParams } from './types'
 
+/** Maximum rows a single request may page through. */
+const MAX_LIMIT = 100
+
 /**
  * Query builder for TypeORM
  */
@@ -18,18 +20,16 @@ function QueryBuilder<T extends ObjectLiteral>({
 }: QueryBuilderParams<T>): SelectQueryBuilder<T> {
   const { query, model, reqQuery, options: opt } = params
 
-  const queryOffset = _.get(reqQuery, 'offset', 0)
-  const queryLimit = _.get(reqQuery, 'limit', 10)
-  const queryFilters = _.get(reqQuery, 'filtered', [])
-  const querySorts = _.get(reqQuery, 'sorted', [])
+  const queryOffset = reqQuery.offset ?? 0
+  const queryLimit = reqQuery.limit ?? 10
 
-  const orderKey = _.get(opt, 'orderKey', 'created_at')
+  const orderKey = opt?.orderKey ?? 'created_at'
 
-  applyFilter({ query, filters: queryFilters, model, options })
+  applyFilter({ query, filters: reqQuery.filtered, model, options })
 
   applySort({
     query,
-    sorts: querySorts,
+    sorts: reqQuery.sorted,
     model,
     orderKey,
   })
@@ -38,7 +38,7 @@ function QueryBuilder<T extends ObjectLiteral>({
     query,
     offset: validate.number(queryOffset),
     limit: validate.number(queryLimit),
-    options: { maxLimit: opt?.limit ?? 100 },
+    options: { maxLimit: opt?.limit ?? MAX_LIMIT },
   })
 
   return query

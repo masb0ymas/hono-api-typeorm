@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { execFileSync } from 'node:child_process'
 
 const name = process.argv[2]
 
@@ -8,7 +8,10 @@ if (!name) {
   process.exit(1)
 }
 
-const command = `typeorm subscriber:create src/database/subscribers/${name}`
+console.log(`Creating subscriber: ${name}`)
 
-console.log(`Executing: ${command}`)
-execSync(command, { stdio: 'inherit' })
+// execFileSync (not execSync) so the name is passed as an argument and cannot
+// be interpreted by a shell.
+execFileSync('typeorm', ['subscriber:create', `src/database/subscribers/${name}`], {
+  stdio: 'inherit',
+})

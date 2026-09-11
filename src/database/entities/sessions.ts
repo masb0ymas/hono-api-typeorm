@@ -5,10 +5,6 @@ import { User } from './users'
 
 @Entity({ name: 'sessions' })
 export class Session extends Base {
-  @ManyToOne(() => User, (User) => User.sessions)
-  @JoinColumn({ name: 'user_id' })
-  user: Relation<User>
-
   @Index()
   @Column({ type: 'uuid' })
   user_id: string
@@ -35,9 +31,14 @@ export class Session extends Base {
   @Column({ nullable: true })
   longitude!: string
 
+  // bigint columns come back from node-postgres as strings.
+  @Column({ type: 'bigint' })
+  expires_in: string
+
   @Column({ type: 'timestamp' })
   expires_at: Date
 
-  @Column({ type: 'bigint' })
-  expires_in: number
+  @ManyToOne(() => User, (user) => user.sessions, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: Relation<User>
 }

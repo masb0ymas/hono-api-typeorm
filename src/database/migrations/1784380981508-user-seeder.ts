@@ -1,8 +1,7 @@
-import _ from 'lodash'
+import argon2 from 'argon2'
 import type { MigrationInterface, QueryRunner } from 'typeorm'
 import { v7 as uuidv7 } from 'uuid'
 
-import { AppDataSource } from '~/config/database'
 import { env } from '~/config/env'
 import { USER_DATA } from '~/lib/constants/seed/user'
 
@@ -10,25 +9,24 @@ import { User } from '../entities/users'
 
 export class UserSeeder1784380981508 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    const formData: Record<string, unknown>[] = []
+    if (USER_DATA.length === 0) return
 
-    if (!_.isEmpty(USER_DATA)) {
-      for (let i = 0; i < USER_DATA.length; i += 1) {
-        const item = USER_DATA[i]
+    // The password is hashed here rather than left to the UserEvent subscriber:
+    // the TypeORM CLI loads only the DataSource, so entity subscribers are not
+    // registered during migrations and the hash would never run.
+    const password = await argon2.hash(env.app.defaultPass)
 
-        formData.push({
-          ...item,
-          id: uuidv7(),
-          is_active: true,
-          password: env.app.defaultPass,
-          created_at: new Date(),
-          updated_at: new Date(),
-        })
-      }
-    }
-
-    // save
-    await AppDataSource.getRepository(User).save(formData)
+    await queryRunner.manager.save(
+      User,
+      USER_DATA.map((item) => ({
+        ...item,
+        id: uuidv7(),
+        is_active: true,
+        password,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }))
+    )
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

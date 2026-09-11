@@ -1,8 +1,13 @@
 import type { Context } from 'hono'
-import jwt from 'jsonwebtoken'
+import jwt, { type JwtPayload } from 'jsonwebtoken'
 
 import { ms } from '../date'
 import type { JwtTokenParams } from './types'
+
+export type JwtVerifyResult = {
+  data: JwtPayload | null
+  message: string
+}
 
 export default class JwtToken {
   private _secret: string
@@ -35,15 +40,9 @@ export default class JwtToken {
       .find((cookie) => cookie.trim().startsWith('token='))
       ?.split('=')[1]
 
-    if (queryToken) {
-      console.log('Token extracted from query')
-      return queryToken
-    }
+    if (queryToken) return queryToken
 
-    if (cookieToken) {
-      console.log('Token extracted from cookie')
-      return cookieToken
-    }
+    if (cookieToken) return cookieToken
 
     if (headerToken) {
       const splitAuthorize = headerToken.split(' ')
@@ -53,22 +52,25 @@ export default class JwtToken {
         return null
       }
 
-      console.log('Token extracted from header')
       return splitAuthorize[1]
     }
 
-    console.log('Token not found')
     return null
   }
 
   /**
    * Verify a JWT token
    */
-  verify(token: string) {
+  verify(token: string): JwtVerifyResult {
     try {
       if (!token) return { data: null, message: 'unauthorized, invalid token' }
 
       const decoded = jwt.verify(token, this._secret)
+
+      if (typeof decoded === 'string') {
+        return { data: null, message: 'unauthorized, invalid token payload' }
+      }
+
       return { data: decoded, message: 'success' }
     } catch (error: unknown) {
       if (error instanceof jwt.TokenExpiredError) {

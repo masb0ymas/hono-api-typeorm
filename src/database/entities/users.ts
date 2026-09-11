@@ -5,7 +5,6 @@ import {
   Entity,
   Index,
   JoinColumn,
-  JoinTable,
   ManyToOne,
   OneToMany,
   type Relation,
@@ -13,6 +12,7 @@ import {
 } from 'typeorm'
 
 import { Base } from './base'
+import { RefreshToken } from './refresh_tokens'
 import { Role } from './roles'
 import { Session } from './sessions'
 
@@ -52,17 +52,19 @@ export class User extends Base {
   @Column({ type: 'boolean', default: false })
   is_blocked: boolean
 
-  @ManyToOne(() => Role, (role) => role)
-  @JoinColumn({ name: 'role_id' })
-  role: Relation<Role>
-
   @Index()
   @Column({ type: 'uuid' })
   role_id: string
 
+  @ManyToOne(() => Role, (role) => role.users)
+  @JoinColumn({ name: 'role_id' })
+  role: Relation<Role>
+
   @OneToMany(() => Session, (session) => session.user)
-  @JoinTable()
   sessions: Relation<Session>[]
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refresh_tokens: Relation<RefreshToken>[]
 
   async comparePassword(current_password: string): Promise<boolean> {
     return await argon2.verify(this.password, current_password)

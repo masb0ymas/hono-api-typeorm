@@ -11,7 +11,7 @@ homeRouter.get('/', (c) => {
 
 homeRouter.get('/health', (c) => {
   const response = HttpResponse.get({ status: 'OK' })
-  return c.json(response)
+  return c.json(response, 200)
 })
 
 export default homeRouter

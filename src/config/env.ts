@@ -6,8 +6,8 @@ export const ConfigSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test', 'staging']),
     MACHINE_ID: z.string(),
-    DEBUG: z.coerce.boolean().default(false),
-    PORT: z.coerce.number().int().default(8000),
+    DEBUG: z.stringbool().default(false),
+    PORT: z.coerce.number().int().default(8080),
 
     APP_NAME: z.string(),
     APP_URL: z.string(),
@@ -22,9 +22,11 @@ export const ConfigSchema = z
     TYPEORM_USERNAME: z.string(),
     TYPEORM_PASSWORD: z.string(),
     TYPEORM_DATABASE: z.string(),
-    TYPEORM_SYNCHRONIZE: z.coerce.boolean(),
-    TYPEORM_LOGGING: z.coerce.boolean(),
-    TYPEORM_MIGRATIONS_RUN: z.coerce.boolean(),
+    // stringbool, not coerce.boolean: "false" and "0" must be false, not the
+    // truthy string JS would otherwise coerce them to.
+    TYPEORM_SYNCHRONIZE: z.stringbool(),
+    TYPEORM_LOGGING: z.stringbool(),
+    TYPEORM_MIGRATIONS_RUN: z.stringbool(),
     TYPEORM_TIMEZONE: z.string(),
   })
   .transform((val) => {
@@ -66,7 +68,7 @@ export type TypeormConfig = Config['typeorm']
 const parsed = ConfigSchema.safeParse(process.env)
 
 if (!parsed.success) {
-  console.log(parsed.error)
+  console.error(parsed.error)
   throw new Error('Invalid environment variables')
 }
 

@@ -1,13 +1,16 @@
 import type { Context } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { ZodError } from 'zod'
 
 import BaseResponse from '~/lib/http/errors/base'
 
 export function errorHandler(error: Error, c: Context) {
-  console.error(error)
-
+  // Expected client errors (4xx) are not server faults; only log the ones that
+  // indicate a bug or an outage (5xx and unknown errors).
   if (error instanceof BaseResponse) {
+    if (error.statusCode >= 500) console.error(error)
+
     return c.json(
       { success: false, name: error.name, message: error.message },
       error.statusCode as ContentfulStatusCode
@@ -20,6 +23,14 @@ export function errorHandler(error: Error, c: Context) {
       400
     )
   }
+
+  if (error instanceof HTTPException) {
+    if (error.status >= 500) console.error(error)
+
+    return c.json({ success: false, name: error.name, message: error.message }, error.status)
+  }
+
+  console.error(error)
 
   return c.json({ success: false, message: 'Internal server error' }, 500)
 }

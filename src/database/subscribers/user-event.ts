@@ -1,5 +1,4 @@
 import argon2 from 'argon2'
-import _ from 'lodash'
 import {
   type EntitySubscriberInterface,
   EventSubscriber,
@@ -16,20 +15,25 @@ export class UserEvent implements EntitySubscriberInterface {
   }
 
   async hashPassword(entity: User): Promise<void> {
+    if (typeof entity.password !== 'string' || entity.password === '') return
+
     entity.password = await argon2.hash(entity.password)
   }
 
   beforeInsert(event: InsertEvent<User>): Promise<void> | undefined {
-    if (!_.isEmpty(event.entity.password)) {
+    if (event.entity.password) {
       return this.hashPassword(event.entity)
     }
   }
 
   async beforeUpdate(event: UpdateEvent<User>): Promise<void> {
-    if (!_.isEmpty(event.entity?.password)) {
-      if (event.entity?.password !== event.databaseEntity?.password) {
-        await this.hashPassword(event.entity as User)
-      }
+    const password = event.entity?.password
+    if (typeof password !== 'string' || password === '') return
+
+    // Only re-hash when the value actually changed; otherwise an update of any
+    // other field would hash the already-hashed password again.
+    if (password !== event.databaseEntity?.password) {
+      await this.hashPassword(event.entity as User)
     }
   }
 }

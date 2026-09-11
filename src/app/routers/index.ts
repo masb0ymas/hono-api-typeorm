@@ -29,7 +29,8 @@ app.route('/', homeRouter)
 app.route('/v1', v1Router)
 
 app.notFound((c) => {
-  throw new ErrorResponse.NotFound(`Endpoint ${c.req.method} ${c.req.path} not found`)
+  const response = new ErrorResponse.NotFound(`Endpoint ${c.req.method} ${c.req.path} not found`)
+  return c.json({ success: false, name: response.name, message: response.message }, 404)
 })
 
 app.onError(errorHandler)

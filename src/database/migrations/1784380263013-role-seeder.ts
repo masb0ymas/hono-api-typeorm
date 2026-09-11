@@ -1,29 +1,22 @@
-import _ from 'lodash'
 import type { MigrationInterface, QueryRunner } from 'typeorm'
 
-import { AppDataSource } from '~/config/database'
 import { ROLE_DATA } from '~/lib/constants/seed/role'
 
 import { Role } from '../entities/roles'
 
 export class RoleSeeder1784380263013 implements MigrationInterface {
-  public async up(_queryRunner: QueryRunner): Promise<void> {
-    const formData: Record<string, unknown>[] = []
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    if (ROLE_DATA.length === 0) return
 
-    if (!_.isEmpty(ROLE_DATA)) {
-      for (let i = 0; i < ROLE_DATA.length; i += 1) {
-        const item = ROLE_DATA[i]
-
-        formData.push({
-          ...item,
-          created_at: new Date(),
-          updated_at: new Date(),
-        })
-      }
-    }
-
-    // save
-    await AppDataSource.getRepository(Role).save(formData)
+    // Use the migration's own manager so the seeds commit with the migration.
+    await queryRunner.manager.save(
+      Role,
+      ROLE_DATA.map((item) => ({
+        ...item,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }))
+    )
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

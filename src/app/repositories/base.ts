@@ -1,4 +1,3 @@
-import _ from 'lodash'
 import {
   type DeepPartial,
   type FindOneOptions,
@@ -65,7 +64,9 @@ export default class BaseRepository<T extends ObjectLiteral> {
    * Create
    */
   async create(data: DeepPartial<T>): Promise<T> {
-    return this.repository.save(data)
+    // `create` builds an entity instance so @BeforeInsert hooks (id generation,
+    // password hashing) run; `save` alone would insert the raw object.
+    return this.repository.save(this.repository.create(data))
   }
 
   /**
@@ -73,7 +74,7 @@ export default class BaseRepository<T extends ObjectLiteral> {
    */
   async update(id: string, data: Partial<T>): Promise<T> {
     const record = await this.findById(id)
-    return this.repository.save({ ...record, ...data })
+    return this.repository.save(this.repository.merge(record, data as DeepPartial<T>))
   }
 
   /**
@@ -104,7 +105,7 @@ export default class BaseRepository<T extends ObjectLiteral> {
    * Validate ids
    */
   private _validateIds(ids: string[]): string[] {
-    if (_.isEmpty(ids)) {
+    if (!ids || ids.length === 0) {
       throw new ErrorResponse.BadRequest('ids is required')
     }
 

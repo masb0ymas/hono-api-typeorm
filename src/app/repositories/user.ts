@@ -14,9 +14,9 @@ export default class UserRepository extends BaseRepository<User> {
   }
 
   /**
-   * Find users with relations
+   * Find users with their role
    * @param params Find parameters
-   * @returns Users with relations
+   * @returns Users with the role relation loaded
    */
   async findWithRelations({
     offset,
@@ -26,7 +26,7 @@ export default class UserRepository extends BaseRepository<User> {
   }: FindParams): Promise<DtoFindAll<User>> {
     const query = this.repository
       .createQueryBuilder(this._model)
-      .leftJoinAndSelect(`${this._model}.roles`, 'r')
+      .leftJoinAndSelect(`${this._model}.role`, 'role')
 
     const newQuery = useQuery({
       query,

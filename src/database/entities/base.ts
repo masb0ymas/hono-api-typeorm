@@ -1,24 +1,12 @@
-import {
-  BaseEntity,
-  BeforeInsert,
-  CreateDateColumn,
-  Entity,
-  Index,
-  PrimaryColumn,
-  UpdateDateColumn,
-} from 'typeorm'
+import { BeforeInsert, CreateDateColumn, Index, PrimaryColumn, UpdateDateColumn } from 'typeorm'
 import { v7 as uuidv7 } from 'uuid'
 
-export type BaseSchema = {
-  id: string
-  created_at: Date
-  updated_at: Date
-}
-
-@Entity()
-export abstract class Base extends BaseEntity {
-  @Index({ unique: true })
-  @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
+// No @Entity() here: the class is only a column mixin for the concrete
+// entities. Decorating it would make TypeORM create a stray `base` table.
+export abstract class Base {
+  // Assigned in @BeforeInsert below. Deliberately not a `uuidv7()` column
+  // default: that function only exists in Postgres 18+.
+  @PrimaryColumn({ type: 'uuid' })
   id!: string
 
   @Index()
