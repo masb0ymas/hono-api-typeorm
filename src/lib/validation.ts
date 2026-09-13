@@ -99,3 +99,11 @@ export const requiredUUID = (attribute: string) =>
  */
 export const requiredEmail = (attribute: string) =>
   z.email(getValidationMessage('email', { attribute }))
+
+/**
+ * Required password validation (minimum length 8)
+ * @param attribute
+ * @returns
+ */
+export const requiredPassword = (attribute: string) =>
+  requiredString(attribute).min(8, getValidationMessage('min', { attribute, min: 8 }))

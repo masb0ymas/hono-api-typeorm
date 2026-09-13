@@ -50,6 +50,9 @@ COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/.env ./.env
 
+# Run as the unprivileged `node` user shipped with the base image
+USER node
+
 EXPOSE 8080
 ENV PORT=8080
 

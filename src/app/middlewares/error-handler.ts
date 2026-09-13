@@ -27,10 +27,16 @@ export function errorHandler(error: Error, c: Context) {
   if (error instanceof HTTPException) {
     if (error.status >= 500) console.error(error)
 
-    return c.json({ success: false, name: error.name, message: error.message }, error.status)
+    return c.json(
+      { success: false, name: error.name, message: error.message },
+      error.status as ContentfulStatusCode
+    )
   }
 
   console.error(error)
 
-  return c.json({ success: false, message: 'Internal server error' }, 500)
+  return c.json(
+    { success: false, name: 'Internal Server Error', message: 'Internal server error' },
+    500
+  )
 }

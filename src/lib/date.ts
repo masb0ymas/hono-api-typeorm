@@ -1,4 +1,4 @@
-import type { Second } from '~/types/time'
+import type { Millisecond } from '~/types/time'
 
 /**
  * Convert time string to milliseconds
@@ -11,7 +11,7 @@ import type { Second } from '~/types/time'
  * ms("1.5h") // 5400000
  * ms("30min") // 1800000
  */
-export function ms(value: string | number): Second {
+export function ms(value: string | number): Millisecond {
   // If already a number, assume it's milliseconds
   if (typeof value === 'number') {
     if (isNaN(value) || !isFinite(value)) {

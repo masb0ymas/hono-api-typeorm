@@ -1,11 +1,11 @@
 import z from 'zod'
 
-import { requiredEmail, requiredString } from '~/lib/validation'
+import { requiredEmail, requiredPassword, requiredString } from '~/lib/validation'
 
 export const SignUpSchema = z.object({
   fullname: requiredString('fullname'),
   email: requiredEmail('email'),
-  password: requiredString('password'),
+  password: requiredPassword('password'),
 })
 
 export const SignInSchema = z.object({

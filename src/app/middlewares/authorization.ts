@@ -2,10 +2,11 @@ import './types'
 
 import type { Context, Next } from 'hono'
 
-import { AppDataSource } from '~/config/database'
-import { Session } from '~/database/entities/sessions'
+import SessionRepository from '~/app/repositories/session'
 import ErrorResponse from '~/lib/http/errors'
 import jwt from '~/lib/jwt/client'
+
+const sessionRepository = new SessionRepository()
 
 export function authorization() {
   return async (c: Context, next: Next) => {
@@ -26,11 +27,14 @@ export function authorization() {
       throw new ErrorResponse.Unauthorized('Invalid token payload')
     }
 
-    const sessionRepo = AppDataSource.getRepository(Session)
-    const session = await sessionRepo.findOne({ where: { user_id: userId, token } })
+    const session = await sessionRepository.findByUserAndToken(userId, token)
 
     if (!session) {
       throw new ErrorResponse.Unauthorized('Session not found')
+    }
+
+    if (session.expires_at < new Date()) {
+      throw new ErrorResponse.Unauthorized('Session expired')
     }
 
     const auth = {

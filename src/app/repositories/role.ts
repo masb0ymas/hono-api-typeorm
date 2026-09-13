@@ -1,13 +1,16 @@
+import type { EntityManager } from 'typeorm'
+
 import { AppDataSource } from '~/config/database'
 import { Role } from '~/database/entities/roles'
 
 import BaseRepository from './base'
 
 export default class RoleRepository extends BaseRepository<Role> {
-  constructor() {
+  constructor(manager?: EntityManager) {
     super({
-      repository: AppDataSource.getRepository(Role),
+      repository: (manager ?? AppDataSource).getRepository(Role),
       model: 'roles',
+      entity: Role,
     })
   }
 }

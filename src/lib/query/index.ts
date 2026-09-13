@@ -1,15 +1,13 @@
-import type { ObjectLiteral, SelectQueryBuilder } from 'typeorm'
+import { type ObjectLiteral, SelectQueryBuilder } from 'typeorm'
 
 import { env } from '~/config/env'
+import { MAX_LIMIT } from '~/lib/constants/pagination'
 
 import { validate } from '../validate'
 import { applyFilter } from './filtered'
 import { applyPagination } from './pagination'
 import { applySort } from './sorted'
 import type { QueryBuilderParams, QueryParams } from './types'
-
-/** Maximum rows a single request may page through. */
-const MAX_LIMIT = 100
 
 /**
  * Query builder for TypeORM
@@ -19,9 +17,6 @@ function QueryBuilder<T extends ObjectLiteral>({
   options,
 }: QueryBuilderParams<T>): SelectQueryBuilder<T> {
   const { query, model, reqQuery, options: opt } = params
-
-  const queryOffset = reqQuery.offset ?? 0
-  const queryLimit = reqQuery.limit ?? 10
 
   const orderKey = opt?.orderKey ?? 'created_at'
 
@@ -36,20 +31,20 @@ function QueryBuilder<T extends ObjectLiteral>({
 
   applyPagination({
     query,
-    offset: validate.number(queryOffset),
-    limit: validate.number(queryLimit),
-    options: { maxLimit: opt?.limit ?? MAX_LIMIT },
+    offset: validate.number(reqQuery.offset ?? 0),
+    limit: validate.number(reqQuery.limit ?? 10),
+    options: { maxLimit: opt?.maxLimit ?? MAX_LIMIT },
   })
 
   return query
 }
 
-type ConnectType = 'postgres' | 'mysql' | 'mariadb'
-
 /**
  * Use query builder
  */
 export function useQuery<T extends ObjectLiteral>(params: QueryParams<T>) {
-  const connectType = env.typeorm.connection as ConnectType
-  return QueryBuilder({ params, options: { type: connectType } })
+  return QueryBuilder({
+    params,
+    options: { type: env.typeorm.connection },
+  })
 }

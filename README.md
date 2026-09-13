@@ -23,7 +23,7 @@ Rest API built with [Hono.js](https://hono.dev) and [TypeORM](https://typeorm.io
 ├── script/                    # CLI helper scripts
 │   ├── create-migration.ts    # Scaffold a new TypeORM migration file
 │   └── create-subscription.ts # Scaffold a new TypeORM subscriber file
-├── public/                    # Static assets served at /static/*
+├── public/static/             # Static assets served at /static/*
 └── src/
     ├── main.ts                 # App entrypoint: init DB, start Hono server
     ├── config/
@@ -60,7 +60,7 @@ Rest API built with [Hono.js](https://hono.dev) and [TypeORM](https://typeorm.io
     │   │   └── errors/            # Custom HTTP error classes (400/401/403/404/500)
     │   ├── jwt/                   # Sign/verify JWT helpers
     │   ├── query/                 # Pagination, filtering, sorting query builders
-    │   ├── constants/             # App-wide constants (cors, error, message, jwt, seed data)
+    │   ├── constants/             # App-wide constants (cors, message, jwt, pagination, seed data)
     │   ├── validate.ts / validation.ts  # Shared validation helpers
     │   ├── date.ts / number.ts     # Utility helpers
     └── types/                    # Shared TypeScript types (message, repository, time)
@@ -146,19 +146,19 @@ pnpm db:sync
 
 All versioned routes are mounted under `/v1` (see `src/app/routers/v1.ts`):
 
-| Method(s) | Path                | Description                        |
-| --------- | ------------------- | ---------------------------------- |
-| `GET`     | `/`                 | Service banner                     |
-| `GET`     | `/health`           | Health check                       |
-| `POST`    | `/v1/auth/sign-up`  | Register                           |
-| `POST`    | `/v1/auth/sign-in`  | Log in                             |
-| `GET`     | `/v1/auth/me`       | Current user (requires auth)       |
-| `POST`    | `/v1/auth/refresh`  | Rotate the access + refresh tokens |
-| `POST`    | `/v1/auth/sign-out` | Revoke the current session         |
-| `*`       | `/v1/users/*`       | User management                    |
-| `*`       | `/v1/roles/*`       | Role management                    |
-| `*`       | `/v1/sessions/*`    | Session listing and revocation     |
-| `GET`     | `/static/*`         | Static files served from `public/` |
+| Method(s) | Path                | Description                               |
+| --------- | ------------------- | ----------------------------------------- |
+| `GET`     | `/`                 | Service banner                            |
+| `GET`     | `/health`           | Health check                              |
+| `POST`    | `/v1/auth/sign-up`  | Register                                  |
+| `POST`    | `/v1/auth/sign-in`  | Log in                                    |
+| `GET`     | `/v1/auth/me`       | Current user (requires auth)              |
+| `POST`    | `/v1/auth/refresh`  | Rotate the access + refresh tokens        |
+| `POST`    | `/v1/auth/sign-out` | Revoke the current session                |
+| `*`       | `/v1/users/*`       | User management                           |
+| `*`       | `/v1/roles/*`       | Role management                           |
+| `*`       | `/v1/sessions/*`    | Session listing and revocation            |
+| `GET`     | `/static/*`         | Static files served from `public/static/` |
 
 Authenticated routes expect `Authorization: Bearer <access_token>`.
 

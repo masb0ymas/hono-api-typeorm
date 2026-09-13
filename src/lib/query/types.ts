@@ -1,10 +1,12 @@
-import { type DataSourceOptions, type ObjectLiteral, SelectQueryBuilder } from 'typeorm'
+import type { ObjectLiteral, SelectQueryBuilder } from 'typeorm'
 
 export type ApplyFilterParams<T extends ObjectLiteral> = {
   query: SelectQueryBuilder<T>
   filters: QueryFilters[] | undefined
   model: string
-  options?: DataSourceOptions
+  options?: {
+    type?: string
+  }
 }
 
 export type QueryFilters = {
@@ -46,7 +48,7 @@ type RequestQuery = {
 }
 
 type QueryOptions = {
-  limit?: number
+  maxLimit?: number
   orderKey?: string
 }
 
@@ -59,5 +61,7 @@ export type QueryParams<T extends ObjectLiteral> = {
 
 export type QueryBuilderParams<T extends ObjectLiteral> = {
   params: QueryParams<T>
-  options?: DataSourceOptions
+  options?: {
+    type?: string
+  }
 }

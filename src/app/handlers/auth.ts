@@ -1,16 +1,11 @@
 import { Hono } from 'hono'
 import { nanoid } from 'nanoid'
-import { v7 as uuidv7 } from 'uuid'
 
 import { AppDataSource } from '~/config/database'
-import { env } from '~/config/env'
-import { RefreshToken } from '~/database/entities/refresh_tokens'
-import { Role } from '~/database/entities/roles'
-import { Session } from '~/database/entities/sessions'
-import { User } from '~/database/entities/users'
 import { JWT_CONSTANTS } from '~/lib/constants/jwt'
 import { ROLE_SEED } from '~/lib/constants/seed/role'
 import { ms } from '~/lib/date'
+import { clientIp } from '~/lib/http/client'
 import ErrorResponse from '~/lib/http/errors'
 import HttpResponse from '~/lib/http/response'
 import jwt from '~/lib/jwt/client'
@@ -18,28 +13,34 @@ import jwt from '~/lib/jwt/client'
 import { RefreshTokenSchema, SignInSchema, SignUpSchema } from '../dtos/auth'
 import { authorization } from '../middlewares/authorization'
 import { validateJson } from '../middlewares/validator'
+import RefreshTokenRepository from '../repositories/refresh-token'
+import RoleRepository from '../repositories/role'
+import SessionRepository from '../repositories/session'
+import UserRepository from '../repositories/user'
 
 const route = new Hono()
+const userRepository = new UserRepository()
 
 route.post('/sign-up', validateJson(SignUpSchema), async (c) => {
   const values = c.req.valid('json')
 
-  const payload = { uid: uuidv7() }
-  const { token } = jwt.generate(payload)
+  if (await userRepository.existsByEmail(values.email)) {
+    throw new ErrorResponse.BadRequest('email is already registered')
+  }
 
-  const repo = AppDataSource.getRepository(User)
-
-  const user = repo.create({
+  // The template ships without an email-verification flow, so accounts are
+  // active immediately; the UserEvent subscriber hashes the password.
+  const user = await userRepository.create({
     ...values,
-    is_active: false,
+    is_active: true,
     is_blocked: false,
-    token_verify: token,
     role_id: ROLE_SEED.USER,
   })
 
-  await repo.save(user)
-
-  const response = HttpResponse.created({ message: 'Sign up successfully' })
+  const response = HttpResponse.created({
+    message: 'Sign up successfully',
+    data: { id: user.id, fullname: user.fullname, email: user.email },
+  })
   return c.json(response, 201)
 })
 
@@ -47,63 +48,50 @@ route.post('/sign-in', validateJson(SignInSchema), async (c) => {
   const values = c.req.valid('json')
 
   const data = await AppDataSource.transaction(async (manager) => {
-    const userRepo = manager.getRepository(User)
-    const roleRepo = manager.getRepository(Role)
-    const sessionRepo = manager.getRepository(Session)
-    const refreshTokenRepo = manager.getRepository(RefreshToken)
+    const users = new UserRepository(manager)
+    const roles = new RoleRepository(manager)
+    const sessions = new SessionRepository(manager)
+    const refreshTokens = new RefreshTokenRepository(manager)
 
-    const user = await userRepo.findOne({
-      select: {
-        id: true,
-        fullname: true,
-        email: true,
-        password: true,
-        is_active: true,
-        role_id: true,
-      },
-      where: { email: values.email },
-    })
+    const user = await users.findByEmailWithPassword(values.email)
 
-    if (!user) {
-      throw new ErrorResponse.NotFound('user not found')
+    // One message for both cases so sign-in cannot enumerate accounts.
+    if (!user || !(await user.comparePassword(values.password))) {
+      throw new ErrorResponse.Unauthorized('Invalid email or password')
     }
 
-    if (!user.is_active) {
-      throw new ErrorResponse.BadRequest('user is not active, please verify your email')
-    }
+    if (user.is_blocked) throw new ErrorResponse.Forbidden('user is blocked')
+    if (!user.is_active) throw new ErrorResponse.Forbidden('user is not active')
 
-    const isPasswordMatch = await user.comparePassword(values.password)
-    if (!isPasswordMatch) {
-      throw new ErrorResponse.BadRequest('current password is incorrect')
-    }
-
-    const role = await roleRepo.findOne({ where: { id: user.role_id } })
-    if (!role) {
-      throw new ErrorResponse.NotFound('role not found')
-    }
+    const role = await roles.findById(user.role_id)
 
     const { token, expiresIn } = jwt.generate({ uid: user.id })
+    const expiresAt = new Date(Date.now() + expiresIn * 1000)
 
-    const session = await sessionRepo.save(
-      sessionRepo.create({
+    const session = await sessions.create(
+      {
         user_id: user.id,
         token,
-        expires_at: new Date(Date.now() + expiresIn * 1000),
+        ip_address: clientIp(c),
+        user_agent: c.req.header('user-agent') ?? undefined,
+        expires_at: expiresAt,
         expires_in: String(expiresIn),
-      })
+      },
+      manager
     )
 
     const refreshTokenExpires = ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES)
     const refresh_token = nanoid()
 
-    await refreshTokenRepo.save(
-      refreshTokenRepo.create({
+    await refreshTokens.create(
+      {
         user_id: user.id,
         token: refresh_token,
         id_token: session.id,
         expires_at: new Date(Date.now() + refreshTokenExpires),
         expires_in: String(refreshTokenExpires / 1000),
-      })
+      },
+      manager
     )
 
     return {
@@ -113,7 +101,7 @@ route.post('/sign-in', validateJson(SignInSchema), async (c) => {
       access_token: token,
       refresh_token,
       id_token: session.id,
-      expires_at: new Date(Date.now() + expiresIn * 1000),
+      expires_at: expiresAt,
       expires_in: expiresIn,
       role: role.name.toLowerCase(),
     }
@@ -125,13 +113,7 @@ route.post('/sign-in', validateJson(SignInSchema), async (c) => {
 
 route.get('/me', authorization(), async (c) => {
   const auth = c.get('auth')
-
-  const repo = AppDataSource.getRepository(User)
-  const user = await repo.findOne({ where: { id: auth.userId }, relations: { role: true } })
-
-  if (!user) {
-    throw new ErrorResponse.NotFound('user not found')
-  }
+  const user = await userRepository.findById(auth.userId, { relations: { role: true } })
 
   const response = HttpResponse.get({ data: user })
   return c.json(response, 200)
@@ -141,14 +123,13 @@ route.post('/refresh', validateJson(RefreshTokenSchema), async (c) => {
   const values = c.req.valid('json')
 
   const data = await AppDataSource.transaction(async (manager) => {
-    const userRepo = manager.getRepository(User)
-    const sessionRepo = manager.getRepository(Session)
-    const refreshTokenRepo = manager.getRepository(RefreshToken)
+    const users = new UserRepository(manager)
+    const sessions = new SessionRepository(manager)
+    const refreshTokens = new RefreshTokenRepository(manager)
 
-    const refreshToken = await refreshTokenRepo.findOne({
-      where: { token: values.refresh_token },
-    })
-
+    // The refresh token is the credential here: this flow must work when the
+    // access token has already expired, so it carries no Authorization header.
+    const refreshToken = await refreshTokens.findByToken(values.refresh_token)
     if (!refreshToken) {
       throw new ErrorResponse.NotFound('refresh token not found')
     }
@@ -157,37 +138,37 @@ route.post('/refresh', validateJson(RefreshTokenSchema), async (c) => {
       throw new ErrorResponse.BadRequest('refresh token expired')
     }
 
-    const user = await userRepo.findOne({
-      where: { id: refreshToken.user_id },
-      relations: { role: true },
-    })
+    const user = await users.findById(refreshToken.user_id, { relations: { role: true } })
+    if (user.is_blocked) throw new ErrorResponse.Forbidden('user is blocked')
+    if (!user.is_active) throw new ErrorResponse.Forbidden('user is not active')
 
-    if (!user) {
-      throw new ErrorResponse.NotFound('user not found')
-    }
-
-    if (!user.is_active) {
-      throw new ErrorResponse.BadRequest('user is not active, please verify your email')
-    }
-
-    const session = await sessionRepo.findOne({ where: { id: refreshToken.id_token } })
+    const session = await sessions.findByIdForUser(refreshToken.id_token, user.id)
     if (!session) {
       throw new ErrorResponse.NotFound('session not found')
     }
 
     const { token, expiresIn } = jwt.generate({ uid: user.id })
+    const expiresAt = new Date(Date.now() + expiresIn * 1000)
 
-    await sessionRepo.save(
-      sessionRepo.merge(session, {
-        token,
-        expires_at: new Date(Date.now() + expiresIn * 1000),
-        expires_in: String(expiresIn),
-      })
+    await sessions.update(
+      session.id,
+      { token, expires_at: expiresAt, expires_in: String(expiresIn) },
+      manager
     )
 
     // Rotate the refresh token so a leaked one cannot be replayed.
     const nextRefreshToken = nanoid()
-    await refreshTokenRepo.save(refreshTokenRepo.merge(refreshToken, { token: nextRefreshToken }))
+    await refreshTokens.deleteByIdToken(refreshToken.id_token, manager)
+    await refreshTokens.create(
+      {
+        user_id: user.id,
+        token: nextRefreshToken,
+        id_token: session.id,
+        expires_at: new Date(Date.now() + ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES)),
+        expires_in: String(ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES) / 1000),
+      },
+      manager
+    )
 
     return {
       uid: user.id,
@@ -196,7 +177,7 @@ route.post('/refresh', validateJson(RefreshTokenSchema), async (c) => {
       access_token: token,
       refresh_token: nextRefreshToken,
       id_token: session.id,
-      expires_at: new Date(Date.now() + expiresIn * 1000),
+      expires_at: expiresAt,
       expires_in: expiresIn,
       role: user.role.name.toLowerCase(),
     }
@@ -210,8 +191,10 @@ route.post('/sign-out', authorization(), async (c) => {
   const auth = c.get('auth')
 
   await AppDataSource.transaction(async (manager) => {
-    await manager.getRepository(RefreshToken).delete({ id_token: auth.session.id })
-    await manager.getRepository(Session).delete({ id: auth.session.id })
+    const refreshTokens = new RefreshTokenRepository(manager)
+    const sessions = new SessionRepository(manager)
+    await refreshTokens.deleteByIdToken(auth.session.id, manager)
+    await sessions.deleteById(auth.session.id, manager)
   })
 
   const response = HttpResponse.get({ message: 'Sign out successfully' })

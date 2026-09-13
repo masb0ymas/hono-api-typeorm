@@ -32,15 +32,12 @@ export default class JwtToken {
    * Extract token from request
    */
   extract(c: Context): string | null {
-    const queryToken = c.req.query('token')
     const headerToken = c.req.header('authorization')
     const cookieToken = c.req
       .header('cookie')
       ?.split(';')
       .find((cookie) => cookie.trim().startsWith('token='))
       ?.split('=')[1]
-
-    if (queryToken) return queryToken
 
     if (cookieToken) return cookieToken
 

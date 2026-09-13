@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 
+import HttpResponse from '~/lib/http/response'
+
 import { AuthHandler } from '../handlers/auth'
 import { RoleHandler } from '../handlers/role'
 import { SessionHandler } from '../handlers/session'
@@ -8,7 +10,8 @@ import { UserHandler } from '../handlers/user'
 const v1Router = new Hono()
 
 v1Router.get('/', (c) => {
-  return c.json({ status: 'v1' })
+  const response = HttpResponse.get({ data: { status: 'v1' } })
+  return c.json(response)
 })
 
 v1Router.route('/auth', AuthHandler)

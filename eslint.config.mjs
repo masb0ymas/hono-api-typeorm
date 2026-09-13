@@ -6,7 +6,7 @@ import * as tseslint from 'typescript-eslint'
 export default defineConfig(
   {
     // config with just ignores is the replacement for `.eslintignore`
-    ignores: ['build/**', 'dist/**', 'node_modules/**/*'],
+    ignores: ['build/**', 'dist/**', 'node_modules/**/*', 'graft/**'],
   },
   {
     files: ['src/**/*.ts'],
@@ -30,7 +30,10 @@ export default defineConfig(
       '@typescript-eslint/prefer-for-of': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^_', argsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-var-requires': 'off',
       '@typescript-eslint/consistent-type-definitions': 'off',
     },
