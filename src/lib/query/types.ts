@@ -14,11 +14,6 @@ export type QueryFilters = {
   value: string
 }
 
-export type CalculateLimitParams = {
-  limit: number
-  maxLimit: number
-}
-
 export type ApplyPaginationParams<T extends ObjectLiteral> = {
   query: SelectQueryBuilder<T>
   offset: number
@@ -57,11 +52,4 @@ export type QueryParams<T extends ObjectLiteral> = {
   query: SelectQueryBuilder<T>
   reqQuery: RequestQuery
   options?: QueryOptions
-}
-
-export type QueryBuilderParams<T extends ObjectLiteral> = {
-  params: QueryParams<T>
-  options?: {
-    type?: string
-  }
 }

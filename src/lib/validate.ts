@@ -1,22 +1,8 @@
 import { validate as uuidValidate } from 'uuid'
 
 import ErrorResponse from './http/errors'
-import { isNumeric } from './number'
 
 export class validate {
-  /**
-   * Validates and converts a value to a number
-   * @param value The value to validate and convert
-   * @returns The validated number or 0 if invalid
-   */
-  public static number(value: unknown) {
-    if (isNumeric(Number(value))) {
-      return Number(value)
-    }
-
-    return 0
-  }
-
   /**
    * Validates if a value is a valid UUID
    * @param value The value to validate

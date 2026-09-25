@@ -3,7 +3,7 @@ import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { ZodError } from 'zod'
 
-import BaseResponse from '~/lib/http/errors/base'
+import { BaseResponse } from '~/lib/http/errors'
 
 export function errorHandler(error: Error, c: Context) {
   // Expected client errors (4xx) are not server faults; only log the ones that

@@ -18,8 +18,6 @@ type Paginated<TData> = {
 export default class HttpResponse {
   /**
    * Base Response
-   * @param dataResponse
-   * @returns
    */
   private static baseResponse<TData>(
     dataResponse: DataResponseEntity<TData>
@@ -29,65 +27,28 @@ export default class HttpResponse {
     return { success, message, ...rest } as DtoHttpResponse<TData>
   }
 
-  /**
-   * Response Get or Success
-   * @param dataResponse
-   * @returns
-   */
-  public static get<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
-    const message = 'data has been received'
-
-    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
+  public static get<TData>(dataResponse?: DataResponseEntity<TData>) {
+    return this.baseResponse({ message: 'data has been received', ...dataResponse })
   }
 
-  /**
-   * Response Created
-   * @param dataResponse
-   * @returns
-   */
-  public static created<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
-    const message = 'data has been created'
-
-    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
+  public static created<TData>(dataResponse?: DataResponseEntity<TData>) {
+    return this.baseResponse({ message: 'data has been created', ...dataResponse })
   }
 
-  /**
-   * Response Updated
-   * @param dataResponse
-   * @returns
-   */
-  public static updated<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
-    const message = 'data has been updated'
-
-    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
+  public static updated<TData>(dataResponse?: DataResponseEntity<TData>) {
+    return this.baseResponse({ message: 'data has been updated', ...dataResponse })
   }
 
-  /**
-   * Response Restored
-   * @param dataResponse
-   * @returns
-   */
-  public static restored<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
-    const message = 'data has been restored'
-
-    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
+  public static restored<TData>(dataResponse?: DataResponseEntity<TData>) {
+    return this.baseResponse({ message: 'data has been restored', ...dataResponse })
   }
 
-  /**
-   * Response Deleted
-   * @param dataResponse
-   * @returns
-   */
-  public static deleted<TData>(dataResponse?: DataResponseEntity<TData>): DtoHttpResponse<TData> {
-    const message = 'data has been deleted'
-
-    return this.baseResponse({ message, ...dataResponse } as DataResponseEntity<TData>)
+  public static deleted<TData>(dataResponse?: DataResponseEntity<TData>) {
+    return this.baseResponse({ message: 'data has been deleted', ...dataResponse })
   }
 
   /**
    * Response Paginated
-   * @param paginated
-   * @returns
    */
   public static paginated<TData>({ data, total, offset, limit }: Paginated<TData>) {
     return this.get({ data, metadata: { offset, limit, total } })

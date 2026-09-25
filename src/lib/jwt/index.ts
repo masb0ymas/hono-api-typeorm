@@ -11,13 +11,11 @@ export type JwtVerifyResult = {
 
 export default class JwtToken {
   private _secret: string
-  private _expires: number
   private _expiresIn: number
 
   constructor({ secret, expires }: JwtTokenParams) {
     this._secret = secret
-    this._expires = ms(expires)
-    this._expiresIn = Number(this._expires) / 1000
+    this._expiresIn = ms(expires) / 1000
   }
 
   /**
@@ -60,8 +58,6 @@ export default class JwtToken {
    */
   verify(token: string): JwtVerifyResult {
     try {
-      if (!token) return { data: null, message: 'unauthorized, invalid token' }
-
       const decoded = jwt.verify(token, this._secret)
 
       if (typeof decoded === 'string') {
@@ -70,22 +66,8 @@ export default class JwtToken {
 
       return { data: decoded, message: 'success' }
     } catch (error: unknown) {
-      if (error instanceof jwt.TokenExpiredError) {
-        return { data: null, message: `unauthorized, token expired ${error.message || error}` }
-      }
-
-      if (error instanceof jwt.JsonWebTokenError) {
-        return { data: null, message: `unauthorized, invalid token ${error.message || error}` }
-      }
-
-      if (error instanceof jwt.NotBeforeError) {
-        return { data: null, message: `unauthorized, token not before ${error.message || error}` }
-      }
-
-      return {
-        data: null,
-        message: `unauthorized, invalid token ${(error as Error).message || error}`,
-      }
+      const reason = error instanceof Error ? error.message : String(error)
+      return { data: null, message: `unauthorized, invalid token ${reason}` }
     }
   }
 }

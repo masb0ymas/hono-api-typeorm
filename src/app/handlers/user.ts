@@ -1,7 +1,5 @@
 import { Hono } from 'hono'
 
-import { AppDataSource } from '~/config/database'
-import { User } from '~/database/entities/users'
 import ErrorResponse from '~/lib/http/errors'
 import HttpResponse from '~/lib/http/response'
 
@@ -52,12 +50,7 @@ route.put(
     const { id } = c.req.valid('param')
     const values = c.req.valid('json')
 
-    const repo = AppDataSource.getRepository(User)
-
-    const getUser = await repo.findOne({
-      select: { id: true, password: true },
-      where: { id },
-    })
+    const getUser = await repository.findByIdWithPassword(id)
     if (!getUser) {
       throw new ErrorResponse.NotFound('User not found')
     }
@@ -74,7 +67,8 @@ route.put(
       throw new ErrorResponse.BadRequest('new password cant be same with current password')
     }
 
-    await repo.save(repo.merge(getUser, { password: values.password }))
+    // The UserEvent subscriber hashes the new password on update.
+    await repository.update(id, { password: values.password })
 
     const response = HttpResponse.updated()
     return c.json(response, 200)

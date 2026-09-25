@@ -47,5 +47,3 @@ export const QuerySchema = z.object({
   filtered: jsonArrayParam(FilterSchema),
   sorted: jsonArrayParam(SortSchema),
 })
-
-export type QueryDto = z.infer<typeof QuerySchema>

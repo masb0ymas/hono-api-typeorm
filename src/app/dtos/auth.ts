@@ -16,7 +16,3 @@ export const SignInSchema = z.object({
 export const RefreshTokenSchema = z.object({
   refresh_token: requiredString('refresh_token'),
 })
-
-export type SignUpDto = z.infer<typeof SignUpSchema>
-export type SignInDto = z.infer<typeof SignInSchema>
-export type RefreshTokenDto = z.infer<typeof RefreshTokenSchema>

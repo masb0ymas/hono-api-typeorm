@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { nanoid } from 'nanoid'
+import type { EntityManager } from 'typeorm'
 
 import { AppDataSource } from '~/config/database'
 import { JWT_CONSTANTS } from '~/lib/constants/jwt'
@@ -20,6 +21,30 @@ import UserRepository from '../repositories/user'
 
 const route = new Hono()
 const userRepository = new UserRepository()
+
+/** Issue a refresh token row tied to a session; returns the token value. */
+async function createRefreshToken(
+  refreshTokens: RefreshTokenRepository,
+  userId: string,
+  sessionId: string,
+  manager: EntityManager
+): Promise<string> {
+  const expiresIn = ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES)
+  const token = nanoid()
+
+  await refreshTokens.create(
+    {
+      user_id: userId,
+      token,
+      id_token: sessionId,
+      expires_at: new Date(Date.now() + expiresIn),
+      expires_in: String(expiresIn / 1000),
+    },
+    manager
+  )
+
+  return token
+}
 
 route.post('/sign-up', validateJson(SignUpSchema), async (c) => {
   const values = c.req.valid('json')
@@ -80,19 +105,7 @@ route.post('/sign-in', validateJson(SignInSchema), async (c) => {
       manager
     )
 
-    const refreshTokenExpires = ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES)
-    const refresh_token = nanoid()
-
-    await refreshTokens.create(
-      {
-        user_id: user.id,
-        token: refresh_token,
-        id_token: session.id,
-        expires_at: new Date(Date.now() + refreshTokenExpires),
-        expires_in: String(refreshTokenExpires / 1000),
-      },
-      manager
-    )
+    const refresh_token = await createRefreshToken(refreshTokens, user.id, session.id, manager)
 
     return {
       uid: user.id,
@@ -157,18 +170,8 @@ route.post('/refresh', validateJson(RefreshTokenSchema), async (c) => {
     )
 
     // Rotate the refresh token so a leaked one cannot be replayed.
-    const nextRefreshToken = nanoid()
     await refreshTokens.deleteByIdToken(refreshToken.id_token, manager)
-    await refreshTokens.create(
-      {
-        user_id: user.id,
-        token: nextRefreshToken,
-        id_token: session.id,
-        expires_at: new Date(Date.now() + ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES)),
-        expires_in: String(ms(JWT_CONSTANTS.DEFAULT_REFRESH_TOKEN_EXPIRES) / 1000),
-      },
-      manager
-    )
+    const nextRefreshToken = await createRefreshToken(refreshTokens, user.id, session.id, manager)
 
     return {
       uid: user.id,

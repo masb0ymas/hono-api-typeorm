@@ -1,5 +1,4 @@
 import { zValidator } from '@hono/zod-validator'
-import type { ValidationTargets } from 'hono'
 import type { ZodSchema } from 'zod'
 
 /**
@@ -35,5 +34,3 @@ export function validateParam<T extends ZodSchema>(schema: T) {
     }
   })
 }
-
-export type { ValidationTargets }

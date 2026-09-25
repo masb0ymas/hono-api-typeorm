@@ -24,7 +24,3 @@ export const UserChangePasswordSchema = z
     message: 'Passwords do not match',
     path: ['confirm_password'],
   })
-
-export type UserCreateDto = z.infer<typeof UserCreateSchema>
-export type UserUpdateDto = z.infer<typeof UserUpdateSchema>
-export type UserChangePasswordDto = z.infer<typeof UserChangePasswordSchema>
